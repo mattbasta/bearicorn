@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<!-- saved from url=(0151)http://net.serverboy.forever.s3.amazonaws.com/bearicorn?AWSAccessKeyId=01XY0ZANWYBYT0Q25J02&Expires=1284556491&Signature=Ae8klc2gH0p4zT4OkmV30QU8woA%3D -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+	<title>BEARICORN</title>
+<script type="text/javascript">
+<!--
+var bear = {
+	state : 0,
+	/*
+	Game State:
+		0 - Start Screen
+		1 - Playing
+		2 - Dying
+		3 - Dead
+	*/
+	level : [
+		true,
+		true,
+		true,
+		true,
+		true,
+		true
+	],
+	difficulty : {
+		num_rocks : 1,
+		rock_speed : 1,
+		num_holes : 1
+	},
+	keys : {
+		jump : false,
+		left : false,
+		right : false
+	},
+	beerpos : -1,
+	rocks : [],
+	jumping : false,
+	falling : false,
+	y : 0,
+	x : 0,
+	moose_x : -60,
+	moose_speed : 0.5,
+	death_count : 0,
+	reset_level : function(full) {
+		bear.moose_x = -60;
+		bear.moose_speed = 0.5;
+		bear.beerpos = -1;
+		if(full) {
+			bear.difficulty.num_holes = 1;
+			bear.difficulty.rock_speed = 1;
+			bear.difficulty.num_rocks = 1;
+		}else{
+			bear.difficulty.num_holes += 0.15;
+			bear.difficulty.num_holes = Math.min(4, bear.difficulty.num_holes);
+			bear.difficulty.num_rocks += 0.25;
+			bear.difficulty.rock_speed += 0.4;
+			
+		}
+		bear.level = [true, true, true, true, true, true];
+		bear.rocks = [];
+		for(var i=0;i<bear.difficulty.num_rocks;i++) {
+			bear.rocks[i] = {
+				x : Math.random() * 6 * 40 + 40,
+				y : Math.random() * 150 - 75
+			}
+		}
+		
+		for(var i=0;i<Math.round(bear.difficulty.num_holes);i++){
+			var hole = Math.floor(Math.random() * 6.9);
+			if(!bear.level[hole]) {
+				i--;
+				continue;
+			}
+			bear.level[hole] = false;
+		}
+		if(!full) {
+			var rand = Math.round(Math.random() * 3);
+			if(rand == 1) {
+				while(bear.beerpos == -1) {
+					var randpos = Math.floor(Math.random() * 6);
+					if(!bear.level[randpos])
+						continue
+					bear.beerpos = randpos;
+				}
+			}
+		}
+		
+		bear.death_count = 0;
+		bear.falling = false;
+		bear.jumping = false;
+		bear.y = 0;
+		bear.x = 0;
+	},
+	draw_frame : function() {
+		var canvas = document.getElementById("canvas");
+		var c = canvas.getContext("2d");
+		c.clearRect(0, 0, 320, 192);
+		c.font = "9pt Courier"
+		if(bear.state == 0){
+			c.fillStyle = "blue";
+			c.fillRect(0, 0, 320, 192);
+			c.fillStyle = "white";
+			
+			c.save();
+			c.scale(4,4);
+			c.translate(10,25);
+			c.fillText("BEARICORN", 0, 0);
+			c.restore();
+			
+			c.fillText("PRESS ARROW KEY TO START", 80, 130);
+			
+		}else if(bear.state == 1) {
+			
+			if(bear.keys.jump && !bear.jumping) {
+				bear.jumping = 1;
+				bear.keys.jump = false;
+			}
+			
+			if(bear.jumping && !bear.falling) {
+				bear.y += (bear.jumping - 1) * 6 - 3;
+				if(bear.y < -40)
+					bear.jumping++;
+				else if(bear.y > 0) {
+					bear.y = 0;
+					bear.jumping = false;
+				}
+			}else{
+				var leg_x = Math.floor((bear.x - 40) / 40);
+				var mlegs = 0;
+				
+				if(leg_x >= 0 && leg_x < 6)
+					if(!bear.level[leg_x])
+						mlegs++;
+				leg_x = Math.floor((bear.x - 10) / 40);
+				if(leg_x >= 0 && leg_x < 6)
+					if(!bear.level[leg_x])
+						mlegs++;
+				if(mlegs == 2) {
+					bear.falling = true;
+				}
+			}
+			
+			if(!bear.falling) {
+				if(bear.keys.left) {
+					bear.x -= 3;
+					if(bear.x < 0)
+						bear.x = 0;
+				} else if(bear.keys.right) {
+					bear.x += 3;
+					if(bear.x > 290) {
+						bear.reset_level();
+					}
+				}
+			}else{
+				bear.y += 3;
+				if(bear.y > 50) {
+					var et = Math.floor(Math.random() * 6) == 0;
+					bear.state = et ? 4 : 2;
+				}
+			}
+			
+			
+			// Paint the sky
+			c.fillStyle = "black";
+			c.fillRect(0, 0, 320, 192);
+			
+			c.fillStyle = "gray";
+			for(var i = 0; i<bear.rocks.length;i++) {
+				var r = bear.rocks[i];
+				c.fillRect(r.x, r.y, 10, 10);
+				r.y += bear.difficulty.rock_speed;
+				if(r.y > 190) {
+					r.y = 0;
+					r.x = Math.random() * 6 * 40 + 40;
+				}
+				if(Math.abs(r.y - (bear.y + 155)) < 15 &&
+				   Math.abs(r.x - bear.x) < 15)
+					bear.state = 2;
+			}
+			
+			if(bear.beerpos != -1) {
+				c.fillStyle = "blue";
+				var bx = (bear.beerpos + 1) * 40 + 15;
+				c.fillRect(bx, 162, 10, 15);
+				if(Math.abs(bear.x + 10 - (bx + 5)) < 10 && bear.y > -10) {
+					bear.difficulty.rock_speed *= 0.5;
+					bear.beerpos = -1;
+				}
+			}
+			
+			c.fillStyle = "brown";
+			// The first and last segments
+			c.fillRect(0, 177, 40, 192);
+			c.fillRect(280, 177, 320, 192);
+			
+			for(var i=0; i<6; i++) {
+				if(!bear.level[i])
+					continue;
+				c.fillRect((i+1) * 40, 177, 40, 40);
+			}
+			
+			drawBear(c, bear.x, bear.y + 145);
+			
+			if(bear.moose_x < 0) {
+				c.fillStyle = "green";
+				drawMoose(c, 320 + bear.moose_x, 132);
+				//c.fillRect(320 + bear.moose_x, 132, 45, 45);
+				bear.moose_speed += 0.5;
+				bear.moose_x += bear.moose_speed;
+			}
+			
+			
+		}else if(bear.state == 2){
+			bear.death_count++;
+			
+			c.fillStyle = Math.round(bear.death_count / 12) % 2 ? "red" : "white";
+			c.fillRect(0, 0, 320, 192);
+			
+			c.fillStyle = "black";
+			drawBear(c, bear.x, bear.y + 145);
+			
+			if(bear.death_count == 60) {
+				bear.state = 3;
+				bear.death_count = 0;
+			}
+			
+		}else if(bear.state == 3) {
+			
+			c.fillStyle = "black";
+			c.fillRect(0, 0, 320, 192);
+			c.fillStyle = "white";
+			
+			c.save();
+			c.scale(4,4);
+			c.translate(10,25);
+			c.fillText("GAME OVER", 0, 0);
+			c.restore();
+			
+			bear.death_count++;
+			if(bear.death_count == 100) {
+				bear.state = 0;
+				bear.reset_level(true)
+			}
+			
+		}else if(bear.state == 4) {
+			// ?????????????
+			
+			c.fillStyle = "black";
+			c.fillRect(0, 0, 320, 192);
+			
+			c.fillStyle = "brown";
+			c.fillRect(0,0,100,192);
+			c.fillRect(220,0,100,192);
+			c.fillRect(0,160,320,32);
+			
+			c.fillStyle = "red";
+			drawBear(c, 110, 130);
+			drawET(c, 165, 130);
+			
+			//c.fillStyle = "blue";
+			//c.fillRect(165,120,40,40);
+			
+			
+		}
+		
+		
+	},
+};
+function drawBear(ctx, x, y) {
+	ctx.fillStyle = "brown";
+	ctx.save();
+	ctx.translate(x,y);
+	ctx.scale(3.5,3.5);
+	ctx.fillRect(1, 5, 5, 2);
+	ctx.fillRect(0, 6, 1, 3);
+	ctx.fillRect(6, 4, 2, 2);
+	ctx.fillRect(2, 7, 4, 1);
+	ctx.fillRect(3, 1, 3, 1);
+	ctx.fillRect(4, 0, 1, 1);
+	ctx.fillRect(5, 8, 1, 1);
+	
+	ctx.fillStyle = "white";
+	ctx.fillRect(7, 3, 1, 1);
+	ctx.fillRect(4, 2, 1, 1);
+	
+	ctx.fillStyle = "red";
+	ctx.fillRect(3, 3, 2, 3);
+	
+	ctx.fillStyle = "black";
+	ctx.fillRect(4, 6, 1, 1);
+	ctx.fillRect(3, 7, 1, 2);
+	
+	ctx.restore();
+	
+}
+function drawMoose(ctx, x, y) {
+	ctx.fillStyle = "green";
+	ctx.save();
+	ctx.translate(x,y);
+	ctx.scale(5,5);
+	ctx.fillRect(1, 4, 1, 1);
+	ctx.fillRect(1, 5, 2, 4);
+	ctx.fillRect(3, 5, 4, 2);
+	ctx.fillRect(5, 7, 2, 2);
+	ctx.fillRect(5, 4, 4, 1);
+	ctx.fillRect(6, 1, 1, 3);
+	ctx.fillRect(7, 0, 1, 3);
+	ctx.fillRect(8, 1, 1, 1);
+	
+	
+	ctx.fillRect(4, 2, 2, 1);
+	ctx.fillRect(4, 0, 1, 2);
+	ctx.fillRect(3, 1, 1, 1);
+	
+	ctx.restore();
+	
+}
+function drawET(ctx, x, y) {
+	ctx.fillStyle = "#D5F2D7";
+	ctx.save();
+	ctx.translate(x,y);
+	ctx.scale(2,2);
+	
+	ctx.fillRect(0, 0, 2, 5);
+	ctx.fillRect(2, 0, 9, 1);
+	ctx.fillRect(4, 1, 7, 1);
+	ctx.fillRect(2, 2, 1, 3);
+	ctx.fillRect(3, 2, 11, 2);
+	ctx.fillRect(11, 4, 3, 8);
+	ctx.fillRect(8, 6, 3, 6);
+	ctx.fillRect(12, 12, 2, 3);
+	
+	ctx.fillRect(10, 14, 4, 1);
+	ctx.fillRect(8, 12, 2, 1);
+	ctx.fillRect(6, 7, 2, 5);
+	ctx.fillRect(4, 8, 2, 7);
+	
+	ctx.fillRect(0, 8, 4, 1);
+	ctx.fillRect(0, 9, 2, 1);
+	ctx.fillRect(2, 13, 2, 2);
+	ctx.fillRect(1, 14, 1, 1);
+	
+	ctx.restore();
+	
+}
+
+
+function log(x) {
+	if(window.console) {
+		console.log(x);
+	}
+}
+window.onload=function(){
+	log("Started");
+	setInterval(bear.draw_frame, 1000/24);
+};
+window.onkeydown=function(e) {key(e, true);};
+window.onkeyup=function(e) {key(e, false);};
+function key(e, enable) {
+	log("Key: " + e.keyCode + " " + enable);
+	if(bear.state == 0) {
+		if(e.keyCode > 39 || e.keyCode < 37)
+			return;
+		bear.state = 1;
+		return;
+	}
+	if(e.keyCode == 38)
+		bear.keys.jump = enable;
+	else if(e.keyCode == 37)
+		bear.keys.left = enable;
+	else if(e.keyCode == 39)
+		bear.keys.right = enable;
+};
+
+-->
+</script>
+</head>
+<body>
+<canvas id="canvas" width="320" height="192">Your browser sucks at life.</canvas>
+
+</body></html>
